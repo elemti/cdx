@@ -1167,4 +1167,11 @@ fn bundled_models_json_roundtrips() {
         !response.models.is_empty(),
         "bundled models.json should contain at least one model"
     );
+    assert!(
+        response
+            .models
+            .iter()
+            .all(|model| model.base_instructions == crate::model_info::BASE_INSTRUCTIONS),
+        "bundled models should use shared base instructions"
+    );
 }
