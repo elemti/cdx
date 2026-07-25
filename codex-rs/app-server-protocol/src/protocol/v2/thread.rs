@@ -865,6 +865,9 @@ pub struct ThreadMetadataUpdateParams {
     /// provide a string to replace the stored value.
     #[ts(optional = nullable)]
     pub git_info: Option<ThreadMetadataGitInfoUpdateParams>,
+    /// Patch whether this thread is pinned. Omit to leave the stored value unchanged.
+    #[ts(optional = nullable)]
+    pub is_pinned: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
@@ -1118,6 +1121,9 @@ pub struct ThreadListParams {
     /// If false or null, only non-archived threads are returned.
     #[ts(optional = nullable)]
     pub archived: Option<bool>,
+    /// Optional pinned filter; when set, only threads matching this value are returned.
+    #[ts(optional = nullable)]
+    pub is_pinned: Option<bool>,
     /// Optional cwd filter or filters; when set, only threads whose session cwd
     /// exactly matches one of these paths are returned.
     #[ts(optional = nullable, type = "string | Array<string> | null")]
@@ -1247,6 +1253,58 @@ pub struct ThreadSearchResponse {
     /// Use it with the opposite `sortDirection`; for timestamp sorts it anchors
     /// at the start of the page timestamp so same-second updates are not skipped.
     pub backwards_cursor: Option<String>,
+}
+
+/// Parameters for searching visible message occurrences within one paginated thread.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ThreadSearchOccurrencesParams {
+    pub thread_id: String,
+    /// Case-insensitive literal substring to find in visible user messages and final assistant
+    /// messages.
+    pub search_term: String,
+    /// Opaque cursor returned by a previous call for the same thread and search term.
+    #[ts(optional = nullable)]
+    pub cursor: Option<String>,
+    /// Optional occurrence page size.
+    #[ts(optional = nullable)]
+    pub limit: Option<u32>,
+}
+
+/// UTF-16 code-unit range within `snippet`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ThreadSearchTextRange {
+    /// Inclusive UTF-16 code-unit offset.
+    pub start: u32,
+    /// Exclusive UTF-16 code-unit offset.
+    pub end: u32,
+}
+
+/// One visible message occurrence returned by [`ThreadSearchOccurrencesResponse`].
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ThreadSearchOccurrence {
+    pub turn_id: String,
+    pub item_id: String,
+    pub snippet: String,
+    /// Match range within `snippet`, in UTF-16 code units.
+    pub snippet_match_range: ThreadSearchTextRange,
+    /// Opaque inclusive cursor accepted by `thread/turns/list` for this turn.
+    pub turn_cursor: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ThreadSearchOccurrencesResponse {
+    /// Occurrences in chronological message order.
+    pub data: Vec<ThreadSearchOccurrence>,
+    /// Opaque cursor to continue after the last returned occurrence.
+    pub next_cursor: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema, TS)]

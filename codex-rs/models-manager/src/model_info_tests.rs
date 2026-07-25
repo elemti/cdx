@@ -13,6 +13,8 @@ fn base_instruction_override_preserves_catalog_approval_messages() {
     let approvals = ApprovalMessages {
         on_request: Some("user approvals".to_string()),
         on_request_auto_review: Some("auto approvals".to_string()),
+        never: None,
+        unless_trusted: None,
     };
     model.model_messages = Some(ModelMessages {
         instructions_template: Some("template".to_string()),
@@ -50,6 +52,8 @@ fn disabled_personality_preserves_catalog_approval_messages() {
     let approvals = ApprovalMessages {
         on_request: Some("user approvals".to_string()),
         on_request_auto_review: None,
+        never: None,
+        unless_trusted: None,
     };
     model.model_messages = Some(ModelMessages {
         instructions_template: Some("template".to_string()),

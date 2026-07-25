@@ -274,6 +274,14 @@ impl ThreadHistoryBuilder {
             .or_else(|| self.turns.last().cloned())
     }
 
+    /// Returns the id of the active turn without materializing its items.
+    pub fn active_turn_id(&self) -> Option<&str> {
+        self.current_turn
+            .as_ref()
+            .map(|turn| turn.id.as_str())
+            .or_else(|| self.turns.last().map(|turn| turn.id.as_str()))
+    }
+
     pub fn turn_snapshot(&self, turn_id: &str) -> Option<Turn> {
         self.current_turn
             .as_ref()
@@ -1481,6 +1489,16 @@ impl ThreadHistoryBuilder {
                 detail: payload.local_image_details.get(idx).copied().flatten(),
             });
         }
+        if let Some(audio) = &payload.audio {
+            content.extend(audio.iter().cloned().map(|url| UserInput::Audio { url }));
+        }
+        content.extend(
+            payload
+                .local_audio
+                .iter()
+                .cloned()
+                .map(|path| UserInput::LocalAudio { path }),
+        );
         content
     }
 }
@@ -1498,6 +1516,9 @@ fn convert_dynamic_tool_content_items(
             codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputImage {
                 image_url,
             } => DynamicToolCallOutputContentItem::InputImage { image_url },
+            codex_protocol::dynamic_tools::DynamicToolCallOutputContentItem::InputAudio {
+                audio_url,
+            } => DynamicToolCallOutputContentItem::InputAudio { audio_url },
         })
         .collect()
 }
@@ -1851,16 +1872,19 @@ mod tests {
     }
 
     #[test]
-    fn rebuilds_user_message_image_details_from_legacy_events() {
-        let local_path = PathBuf::from("/tmp/local.png");
+    fn rebuilds_user_message_attachments_from_legacy_events() {
+        let local_image_path = PathBuf::from("/tmp/local.png");
+        let local_audio_path = PathBuf::from("/tmp/local.wav");
         let events = vec![RolloutItem::EventMsg(EventMsg::UserMessage(
             UserMessageEvent {
                 client_id: None,
                 message: "inspect these".into(),
                 images: Some(vec!["https://example.com/image.png".into()]),
                 image_details: vec![Some(ImageDetail::Original)],
-                local_images: vec![local_path.clone()],
+                local_images: vec![local_image_path.clone()],
                 local_image_details: vec![Some(ImageDetail::Original)],
+                audio: Some(vec!["https://example.com/audio.mp3".into()]),
+                local_audio: vec![local_audio_path.clone()],
                 text_elements: Vec::new(),
             },
         ))];
@@ -1883,8 +1907,14 @@ mod tests {
                         detail: Some(ImageDetail::Original),
                     },
                     UserInput::LocalImage {
-                        path: local_path,
+                        path: local_image_path,
                         detail: Some(ImageDetail::Original),
+                    },
+                    UserInput::Audio {
+                        url: "https://example.com/audio.mp3".into(),
+                    },
+                    UserInput::LocalAudio {
+                        path: local_audio_path,
                     },
                 ],
             }
@@ -2058,11 +2088,13 @@ mod tests {
     }
 
     #[test]
-    fn rebuilds_command_execution_item_from_persisted_completion() {
+    fn preserves_command_plugin_id_across_legacy_upsert() {
         let turn_id = "turn-1";
         let thread_id = ThreadId::new();
         let command_item = CoreTurnItem::CommandExecution(CoreCommandExecutionItem {
             id: "exec-1".to_string(),
+            plugin_id: Some("sample@openai-curated".to_string()),
+            script_path: Some("scripts/run.py".to_string()),
             process_id: Some("pid-1".to_string()),
             command: vec!["echo".to_string(), "hello world".to_string()],
             cwd: test_path_buf("/tmp").abs().into(),
@@ -2093,6 +2125,28 @@ mod tests {
                 item: command_item,
                 completed_at_ms: 1_000,
             }),
+            EventMsg::ExecCommandEnd(ExecCommandEndEvent {
+                call_id: "exec-1".to_string(),
+                plugin_id: Some("sample@openai-curated".to_string()),
+                script_path: Some("scripts/run.py".to_string()),
+                process_id: Some("pid-1".to_string()),
+                turn_id: turn_id.to_string(),
+                completed_at_ms: 1_000,
+                command: vec!["echo".to_string(), "hello world".to_string()],
+                cwd: test_path_buf("/tmp").abs().into(),
+                parsed_cmd: vec![ParsedCommand::Unknown {
+                    cmd: "echo hello world".to_string(),
+                }],
+                source: ExecCommandSource::Agent,
+                interaction_input: None,
+                stdout: "hello world\n".to_string(),
+                stderr: String::new(),
+                aggregated_output: "hello world\n".to_string(),
+                exit_code: 0,
+                duration: Duration::from_millis(12),
+                formatted_output: "hello world\n".to_string(),
+                status: CoreExecCommandStatus::Completed,
+            }),
             EventMsg::TurnComplete(TurnCompleteEvent {
                 turn_id: turn_id.to_string(),
                 started_at: None,
@@ -2115,6 +2169,8 @@ mod tests {
             turns[0].items,
             vec![ThreadItem::CommandExecution {
                 id: "exec-1".to_string(),
+                plugin_id: Some("sample@openai-curated".to_string()),
+                script_path: Some("scripts/run.py".to_string()),
                 command: "echo 'hello world'".to_string(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: Some("pid-1".to_string()),
@@ -2671,6 +2727,8 @@ mod tests {
             }),
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                 call_id: "exec-1".into(),
+                plugin_id: None,
+                script_path: None,
                 process_id: Some("pid-1".into()),
                 turn_id: "turn-1".into(),
                 completed_at_ms: 0,
@@ -2734,6 +2792,8 @@ mod tests {
             turns[0].items[2],
             ThreadItem::CommandExecution {
                 id: "exec-1".into(),
+                plugin_id: None,
+                script_path: None,
                 command: "echo 'hello world'".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: Some("pid-1".into()),
@@ -2879,9 +2939,17 @@ mod tests {
                 namespace: Some("codex_app".into()),
                 tool: "lookup_ticket".into(),
                 arguments: serde_json::json!({"id":"ABC-123"}),
-                content_items: vec![CoreDynamicToolCallOutputContentItem::InputText {
-                    text: "Ticket is open".into(),
-                }],
+                content_items: vec![
+                    CoreDynamicToolCallOutputContentItem::InputText {
+                        text: "Ticket is open".into(),
+                    },
+                    CoreDynamicToolCallOutputContentItem::InputImage {
+                        image_url: "data:image/png;base64,AAA".into(),
+                    },
+                    CoreDynamicToolCallOutputContentItem::InputAudio {
+                        audio_url: "data:audio/wav;base64,YXVkaW8=".into(),
+                    },
+                ],
                 success: true,
                 error: None,
                 duration: Duration::from_millis(42),
@@ -2903,9 +2971,17 @@ mod tests {
                 tool: "lookup_ticket".into(),
                 arguments: serde_json::json!({"id":"ABC-123"}),
                 status: DynamicToolCallStatus::Completed,
-                content_items: Some(vec![DynamicToolCallOutputContentItem::InputText {
-                    text: "Ticket is open".into(),
-                }]),
+                content_items: Some(vec![
+                    DynamicToolCallOutputContentItem::InputText {
+                        text: "Ticket is open".into(),
+                    },
+                    DynamicToolCallOutputContentItem::InputImage {
+                        image_url: "data:image/png;base64,AAA".into(),
+                    },
+                    DynamicToolCallOutputContentItem::InputAudio {
+                        audio_url: "data:audio/wav;base64,YXVkaW8=".into(),
+                    },
+                ]),
                 success: Some(true),
                 duration_ms: Some(42),
             }
@@ -2932,6 +3008,8 @@ mod tests {
             }),
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                 call_id: "exec-declined".into(),
+                plugin_id: None,
+                script_path: None,
                 process_id: Some("pid-2".into()),
                 turn_id: "turn-1".into(),
                 completed_at_ms: 0,
@@ -2977,6 +3055,8 @@ mod tests {
             turns[0].items[1],
             ThreadItem::CommandExecution {
                 id: "exec-declined".into(),
+                plugin_id: None,
+                script_path: None,
                 command: "ls".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: Some("pid-2".into()),
@@ -3025,6 +3105,8 @@ mod tests {
             EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                 id: "review-guardian-exec".into(),
                 target_item_id: Some("guardian-exec".into()),
+                plugin_id: Some("sample@openai-curated".into()),
+                script_path: Some("scripts/run.py".into()),
                 turn_id: "turn-1".into(),
                 started_at_ms: 1_000,
                 completed_at_ms: None,
@@ -3044,6 +3126,8 @@ mod tests {
             EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                 id: "review-guardian-exec".into(),
                 target_item_id: Some("guardian-exec".into()),
+                plugin_id: Some("sample@openai-curated".into()),
+                script_path: Some("scripts/run.py".into()),
                 turn_id: "turn-1".into(),
                 started_at_ms: 1_000,
                 completed_at_ms: Some(1_042),
@@ -3075,6 +3159,8 @@ mod tests {
             turns[0].items[1],
             ThreadItem::CommandExecution {
                 id: "guardian-exec".into(),
+                plugin_id: Some("sample@openai-curated".into()),
+                script_path: Some("scripts/run.py".into()),
                 command: "rm -rf /tmp/guardian".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: None,
@@ -3111,6 +3197,8 @@ mod tests {
             EventMsg::GuardianAssessment(GuardianAssessmentEvent {
                 id: "review-guardian-execve".into(),
                 target_item_id: Some("guardian-execve".into()),
+                plugin_id: Some("sample@openai-curated".into()),
+                script_path: Some("scripts/run.py".into()),
                 turn_id: "turn-1".into(),
                 started_at_ms: 2_000,
                 completed_at_ms: None,
@@ -3141,6 +3229,8 @@ mod tests {
             turns[0].items[1],
             ThreadItem::CommandExecution {
                 id: "guardian-execve".into(),
+                plugin_id: Some("sample@openai-curated".into()),
+                script_path: Some("scripts/run.py".into()),
                 command: "/bin/rm -f /tmp/file.sqlite".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: None,
@@ -3200,6 +3290,8 @@ mod tests {
             }),
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                 call_id: "exec-late".into(),
+                plugin_id: None,
+                script_path: None,
                 process_id: Some("pid-42".into()),
                 turn_id: "turn-a".into(),
                 completed_at_ms: 0,
@@ -3243,6 +3335,8 @@ mod tests {
             turns[0].items[1],
             ThreadItem::CommandExecution {
                 id: "exec-late".into(),
+                plugin_id: None,
+                script_path: None,
                 command: "echo done".into(),
                 cwd: test_path_buf("/tmp").abs().into(),
                 process_id: Some("pid-42".into()),
@@ -3302,6 +3396,8 @@ mod tests {
             }),
             EventMsg::ExecCommandEnd(ExecCommandEndEvent {
                 call_id: "exec-unknown-turn".into(),
+                plugin_id: None,
+                script_path: None,
                 process_id: Some("pid-42".into()),
                 turn_id: "turn-missing".into(),
                 completed_at_ms: 0,
