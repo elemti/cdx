@@ -1030,12 +1030,35 @@ fn stage_str(stage: Stage) -> &'static str {
 
 fn main() -> anyhow::Result<()> {
     codex_build_info::initialize!();
+    reexec_brocodex_with_codex_arg0()?;
     let remote_control_disabled = codex_app_server::take_remote_control_disabled_env();
     arg0_dispatch_or_else(move |arg0_paths: Arg0DispatchPaths| async move {
         // Keep the CLI dispatcher off the runtime's stack while the TUI rebuilds a thread.
         Box::pin(cli_main(arg0_paths, remote_control_disabled)).await?;
         Ok(())
     })
+}
+
+#[cfg(unix)]
+fn reexec_brocodex_with_codex_arg0() -> anyhow::Result<()> {
+    use std::os::unix::process::CommandExt;
+
+    let mut args = std::env::args_os();
+    let argv0 = args.next().unwrap_or_default();
+    if std::path::Path::new(&argv0).file_name() != Some(std::ffi::OsStr::new("brocodex")) {
+        return Ok(());
+    }
+
+    let err = std::process::Command::new(std::env::current_exe()?)
+        .args(args)
+        .arg0("codex")
+        .exec();
+    Err(err.into())
+}
+
+#[cfg(not(unix))]
+fn reexec_brocodex_with_codex_arg0() -> anyhow::Result<()> {
+    Ok(())
 }
 
 async fn cli_main(
