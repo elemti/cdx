@@ -80,6 +80,10 @@ pub(crate) async fn check_directory_trust(
         let Some(project) = project else {
             continue;
         };
+        // BROCODEX: leave folder trust decisions to the configured execution policy.
+        if project.trust_level != Some(TrustLevel::Trusted) {
+            continue;
+        }
         // Remote connections retain the existing behavior for saved untrusted folders.
         if target.uses_remote_workspace() && project.trust_level == Some(TrustLevel::Untrusted) {
             continue;
