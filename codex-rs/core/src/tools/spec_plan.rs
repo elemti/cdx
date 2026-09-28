@@ -798,7 +798,8 @@ fn image_generation_available(turn_context: &TurnContext, model_info: &ModelInfo
     }
 
     let provider = turn_context.provider.info();
-    provider.uses_openai_actor_authorization()
+    provider.is_cliproxyapi()
+        || provider.uses_openai_actor_authorization()
         || (provider.requires_openai_auth
             && turn_context
                 .auth_manager

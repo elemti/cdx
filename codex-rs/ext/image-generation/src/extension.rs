@@ -42,6 +42,7 @@ impl ImageGenerationExtensionConfig {
         Self {
             available: config.model_provider.is_openai()
                 || config.model_provider.requires_openai_auth
+                || config.model_provider.is_cliproxyapi()
                 || config.model_provider.uses_openai_actor_authorization(),
             http_client_factory: config.http_client_factory(),
             provider: config.model_provider.clone(),

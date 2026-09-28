@@ -269,6 +269,16 @@ fn test_uses_openai_actor_authorization() {
 }
 
 #[test]
+fn test_cliproxyapi_image_provider_identity() {
+    let provider = ModelProviderInfo {
+        name: "cliproxyapi".to_string(),
+        ..Default::default()
+    };
+    assert!(provider.is_cliproxyapi());
+    assert!(!ModelProviderInfo::default().is_cliproxyapi());
+}
+
+#[test]
 fn test_deserialize_provider_auth_config_defaults() {
     let base_dir = tempdir().unwrap();
     let provider_toml = r#"

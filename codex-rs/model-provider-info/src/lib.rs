@@ -617,6 +617,10 @@ other non-default provider fields are not supported"
         self.name == OPENAI_PROVIDER_NAME
     }
 
+    pub fn is_cliproxyapi(&self) -> bool {
+        self.name == "cliproxyapi"
+    }
+
     pub fn supports_codex_backend_routes(&self) -> bool {
         self.is_openai()
             && self.base_url.as_deref().is_none_or(|base_url| {

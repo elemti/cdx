@@ -310,6 +310,19 @@ fn use_bedrock_provider(turn: &mut TurnContext) {
     turn.provider = create_model_provider(provider_info, turn.auth_manager.clone());
 }
 
+fn use_cliproxyapi_provider(turn: &mut TurnContext) {
+    let provider_info = ModelProviderInfo {
+        name: "cliproxyapi".to_string(),
+        base_url: Some("http://localhost:8317/v1".to_string()),
+        ..Default::default()
+    };
+    update_config(turn, |config| {
+        config.model_provider_id = "cliproxyapi".to_string();
+        config.model_provider = provider_info.clone();
+    });
+    turn.provider = create_model_provider(provider_info, turn.auth_manager.clone());
+}
+
 struct TestNamespaceExtensionTool {
     namespace: &'static str,
     tool_name: &'static str,
@@ -3241,6 +3254,22 @@ async fn hosted_web_search_and_standalone_image_generation_follow_runtime_gates(
     )
     .await;
     image_generation.assert_visible_contains(&["image_gen"]);
+
+    let cliproxyapi = probe_with(
+        |turn| {
+            use_cliproxyapi_provider(turn);
+            update_turn_settings_for_test(turn, |settings| {
+                Arc::make_mut(&mut settings.model_info).input_modalities =
+                    vec![InputModality::Image];
+            });
+        },
+        ToolPlanInputs {
+            extension_tool_executors: vec![image_generation_tool.clone()],
+            ..Default::default()
+        },
+    )
+    .await;
+    cliproxyapi.assert_visible_contains(&["image_gen"]);
 
     let extension_disabled = probe_with(
         |turn| {
