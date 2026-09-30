@@ -1942,7 +1942,7 @@ dependencies = [
 
 [[package]]
 name = "codex-agent-message-board-client"
-version = "0.0.0"
+version = "0.159.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3090,7 +3090,7 @@ dependencies = [
 
 [[package]]
 name = "codex-core-plugin-common"
-version = "0.0.0"
+version = "0.159.2"
 dependencies = [
  "codex-utils-absolute-path",
  "semver",
@@ -5141,7 +5141,7 @@ dependencies = [
 
 [[package]]
 name = "codex-utils-process"
-version = "0.0.0"
+version = "0.159.2"
 dependencies = [
  "pretty_assertions",
  "tokio",
@@ -5294,7 +5294,7 @@ dependencies = [
 
 [[package]]
 name = "codex-websocket-auth"
-version = "0.0.0"
+version = "0.159.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
