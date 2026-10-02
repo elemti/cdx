@@ -46,13 +46,20 @@ pub fn with_config_overrides(mut model: ModelInfo, config: &ModelsManagerConfig)
     if let Some(base_instructions) = &config.base_instructions {
         let model_messages = model.model_messages.get_or_insert_default();
         model_messages.instructions_template = Some(base_instructions.clone());
-    } else if config.personality == Some(Personality::None)
-        && let Some(instructions_template) = model
-            .model_messages
-            .as_mut()
-            .and_then(|messages| messages.instructions_template.as_mut())
+    } else if let Some(instructions_template) = model
+        .model_messages
+        .as_mut()
+        .and_then(|messages| messages.instructions_template.as_mut())
     {
-        *instructions_template = strip_personality_section(std::mem::take(instructions_template));
+        // BROCODEX: leave progress-update and wait cadence to the agent.
+        *instructions_template = instructions_template
+            .replace(" The user appreciates consistent, frequent communication during your turn, and should not be left without a commentary update for more than 60 seconds during ongoing work.", "")
+            .replace("- Avoid performing blocking sleep or wait calls longer than 60 seconds, as they may prevent you from communicating with the user for their duration.\n", "")
+            .replace("- You provide user updates frequently, every 30s.\n", "");
+        if config.personality == Some(Personality::None) {
+            *instructions_template =
+                strip_personality_section(std::mem::take(instructions_template));
+        }
     }
 
     model
