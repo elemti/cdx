@@ -36,6 +36,7 @@ use tokio_tungstenite::tungstenite::Error as WsError;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::protocol::CloseFrame;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tracing::Instrument;
 use tracing::Span;
 use tracing::debug;
@@ -836,17 +837,29 @@ async fn run_websocket_response_stream(
             Message::Binary(_) => {
                 return Err(ApiError::Stream("unexpected binary websocket event".into()));
             }
-            Message::Close(_) => {
-                return Err(ApiError::Stream(
-                    "websocket closed by server before response.completed".into(),
-                ));
-            }
+            Message::Close(frame) => return Err(websocket_close_error(frame)),
             Message::Frame(_) => {}
             Message::Ping(_) | Message::Pong(_) => {}
         }
     }
 
     Ok(())
+}
+
+fn websocket_close_error(frame: Option<CloseFrame>) -> ApiError {
+    if let Some(frame) = frame
+        && frame.code == CloseCode::Size
+    {
+        // Preserve the size rejection across the API bridge so callers can replay over HTTP.
+        return ApiError::Api {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            message: format!(
+                "websocket closed with code 1009 (message too big): {}",
+                frame.reason
+            ),
+        };
+    }
+    ApiError::Stream("websocket closed by server before response.completed".into())
 }
 
 fn emit_responses_websocket_timing_event(
@@ -940,6 +953,25 @@ mod tests {
     use serde_json::value::to_raw_value;
     use std::collections::HashMap;
     use std::sync::Arc;
+
+    #[test]
+    fn websocket_size_close_preserves_rejection_for_http_fallback() {
+        let error = websocket_close_error(Some(CloseFrame {
+            code: CloseCode::Size,
+            reason: "message too big".into(),
+        }));
+        let error = crate::api_bridge::map_api_error(error);
+        assert_eq!(error.http_status_code_value(), Some(413));
+        assert!(error.to_string().contains("1009"));
+        assert!(matches!(websocket_close_error(None), ApiError::Stream(_)));
+        assert!(matches!(
+            websocket_close_error(Some(CloseFrame {
+                code: CloseCode::Normal,
+                reason: "".into(),
+            })),
+            ApiError::Stream(_)
+        ));
+    }
 
     #[test]
     fn direct_serialization_preserves_websocket_request_payload() {

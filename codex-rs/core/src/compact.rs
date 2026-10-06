@@ -348,6 +348,25 @@ async fn run_compact_task_inner_impl(
                 sess.set_total_tokens_full(turn_context.as_ref()).await;
                 return Err(e);
             }
+            Err(e) if e.http_status_code_value() == Some(413) => {
+                if client_session.try_switch_fallback_transport(
+                    &turn_context.session_telemetry,
+                    turn_context.model_info(),
+                ) {
+                    sess.send_event(
+                        &turn_context,
+                        EventMsg::Warning(WarningEvent {
+                            message: format!(
+                                "WebSocket request too large; retrying compaction over HTTP. {e}"
+                            ),
+                        }),
+                    )
+                    .await;
+                    retries = 0;
+                    continue;
+                }
+                return Err(e);
+            }
             Err(e) => {
                 if retries < max_retries {
                     retries += 1;

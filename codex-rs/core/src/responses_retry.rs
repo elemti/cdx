@@ -64,6 +64,23 @@ pub(crate) async fn handle_response_stream_error(
     request: ResponsesStreamRequest,
 ) -> Result<(), CodexErr> {
     let turn_context = &step_context.turn;
+    if err.http_status_code_value() == Some(413) {
+        if client_session.try_switch_fallback_transport(
+            &turn_context.session_telemetry,
+            turn_context.model_info(),
+        ) {
+            sess.send_event(
+                turn_context,
+                EventMsg::Warning(WarningEvent {
+                    message: format!("WebSocket request too large; retrying over HTTP. {err}"),
+                }),
+            )
+            .await;
+            retry_state.retries = 0;
+            return Ok(());
+        }
+        return Err(err);
+    }
     if matches!(request, ResponsesStreamRequest::Sampling)
         && matches!(err.details(), CodexErrorDetails::ContentFilter)
     {
