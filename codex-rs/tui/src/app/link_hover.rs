@@ -12,9 +12,10 @@ impl App {
             && self.overlay.is_none()
             && self.chat_widget.no_modal_or_popup_active()
             && tui.link_hover.mouse.is_some_and(|mouse| {
-                mouse
-                    .modifiers
-                    .intersects(KeyModifiers::CONTROL | KeyModifiers::SUPER)
+                (mouse.modifiers.is_empty()
+                    || mouse
+                        .modifiers
+                        .intersects(KeyModifiers::CONTROL | KeyModifiers::SUPER))
                     && self
                         .transcript_view
                         .link_at(mouse.column, mouse.row)

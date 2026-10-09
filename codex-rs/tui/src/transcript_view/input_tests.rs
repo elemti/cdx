@@ -267,7 +267,7 @@ fn shift_click_preserves_selection_units_and_allows_dragging() {
 }
 
 #[test]
-fn ordinary_click_on_bare_and_markdown_links_does_not_open_them() {
+fn ordinary_click_opens_bare_and_markdown_links_on_release() {
     for markdown in [
         "https://example.com/docs",
         "[docs](https://example.com/docs)",
@@ -290,13 +290,16 @@ fn ordinary_click_on_bare_and_markdown_links_does_not_open_them() {
                 kind: MouseEventKind::Up(MouseButton::Left),
                 ..down
             };
-            assert!(matches!(
-                view.handle_mouse(up, &cells),
-                Some(ViewAction::Changed)
-            ));
+            let Some(ViewAction::OpenLink(url)) = view.handle_mouse(up, &cells) else {
+                panic!("click should open {markdown}");
+            };
             assert_eq!(
-                (view.selected_text(&cells), view.is_following()),
-                (None, true)
+                (
+                    url.as_str(),
+                    view.selected_text(&cells),
+                    view.is_following()
+                ),
+                ("https://example.com/docs", None, true)
             );
             assert!(view.handle_mouse(up, &cells).is_none());
         }
