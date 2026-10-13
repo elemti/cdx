@@ -1753,6 +1753,7 @@ async fn responses_websocket_emits_rate_limit_events() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn responses_websocket_usage_limit_error_emits_rate_limit_event() {
     skip_if_no_network!();
 

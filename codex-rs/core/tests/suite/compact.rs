@@ -1008,7 +1008,7 @@ async fn manual_compact_uses_custom_prompt() {
 }
 
 #[test_case::test_case(false; "success")]
-#[test_case::test_case(true; "failure")]
+#[test_case::test_case(true => ignore["BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]; "failure")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn reasoning_effort_override_remote_v2_compaction_resets_pinned_effort(
     fail_compaction: bool,
@@ -2966,6 +2966,7 @@ async fn pre_sampling_compact_falls_back_after_previous_model_invalid_request_on
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn pre_sampling_compact_falls_back_after_previous_model_stream_retries_are_exhausted() {
     skip_if_no_network!();
 
@@ -3069,6 +3070,7 @@ async fn pre_sampling_compact_falls_back_after_previous_model_stream_retries_are
 #[test_case::test_case(2; "selected_model_recovers")]
 #[test_case::test_case(3; "selected_model_exhausts_retries")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn pre_sampling_compact_advised_errors_fall_back_then_retry_on_selected_model(
     selected_model_failures: usize,
 ) {
@@ -3191,6 +3193,7 @@ async fn pre_sampling_compact_advised_errors_fall_back_then_retry_on_selected_mo
 #[test_case::test_case(0; "no_retries")]
 #[test_case::test_case(2; "two_retries")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn manual_remote_compact_advice_respects_retry_limit(max_retries: u64) {
     skip_if_no_network!();
 

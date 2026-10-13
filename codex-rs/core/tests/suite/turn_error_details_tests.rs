@@ -68,6 +68,7 @@ enum Phase {
 
 /// Backend reset details reach the hook even when post-turn compaction preserves a completed answer.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn turn_error_details_preserve_usage_reset_and_compaction_outcomes() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
 

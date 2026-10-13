@@ -33,6 +33,7 @@ pub(crate) struct ResponsesStreamRetryState {
     retries: u64,
     connection_retries: u64,
     connection_retry_delay: Duration,
+    bro: crate::bro_retry::BroRetryState,
 }
 
 impl Default for ResponsesStreamRetryState {
@@ -41,6 +42,7 @@ impl Default for ResponsesStreamRetryState {
             retries: 0,
             connection_retries: 0,
             connection_retry_delay: INITIAL_CONNECTION_RETRY_DELAY,
+            bro: Default::default(),
         }
     }
 }
@@ -101,6 +103,18 @@ pub(crate) async fn handle_response_stream_error(
         ResponsesStreamRequest::Sampling => RetryOperation::Sampling,
         ResponsesStreamRequest::RemoteCompactionV2 => RetryOperation::RemoteCompactionV2,
     };
+    // BROCODEX: Bro's retry policy waits out limits and outages; see bro_retry.rs.
+    let bro_retry = crate::bro_retry::retry(
+        &mut retry_state.bro,
+        &err,
+        sess,
+        turn_context,
+        Some(operation),
+        /*upstream_exhausted*/ false,
+    );
+    if bro_retry.await {
+        return Ok(());
+    }
     let retry_count = retry_state.retries.saturating_add(1);
     let Some(delay) = err.retry_delay(retry_count) else {
         return Err(err);
@@ -183,6 +197,18 @@ pub(crate) async fn handle_response_stream_error(
         return Ok(());
     }
 
+    // BROCODEX: disconnects keep retrying once upstream's budget is spent.
+    let bro_retry = crate::bro_retry::retry(
+        &mut retry_state.bro,
+        &err,
+        sess,
+        turn_context,
+        Some(operation),
+        /*upstream_exhausted*/ true,
+    );
+    if bro_retry.await {
+        return Ok(());
+    }
     sess.services
         .thread_extension_data
         .insert(ExhaustedResponseRetry {

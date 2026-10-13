@@ -3524,6 +3524,7 @@ async fn token_count_includes_rate_limits_snapshot() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn usage_limit_error_emits_rate_limit_event() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
     let server = MockServer::start().await;

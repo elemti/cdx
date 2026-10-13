@@ -278,6 +278,7 @@ async fn run_compact_task_inner_impl(
 
     let max_retries = turn_context.provider.info().stream_max_retries();
     let mut retries = 0;
+    let mut bro_retry = crate::bro_retry::BroRetryState::default();
     // Reuse one client session so turn-scoped state (sticky routing and websocket incremental
     // request tracking) survives retries within this compact turn.
     let mut client_session = sess.services.model_client.new_session();
@@ -368,6 +369,20 @@ async fn run_compact_task_inner_impl(
                 return Err(e);
             }
             Err(e) => {
+                // BROCODEX: compaction shares Bro's retry policy; see bro_retry.rs.
+                let upstream_exhausted = retries >= max_retries;
+                if crate::bro_retry::retry(
+                    &mut bro_retry,
+                    &e,
+                    &sess,
+                    turn_context.as_ref(),
+                    /*operation*/ None,
+                    upstream_exhausted,
+                )
+                .await
+                {
+                    continue;
+                }
                 if retries < max_retries {
                     retries += 1;
                     let delay = backoff(retries);

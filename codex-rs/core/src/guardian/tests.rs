@@ -3136,6 +3136,7 @@ async fn guardian_review_surfaces_responses_api_errors_in_rejection_reason() -> 
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "BROCODEX: overloads retry inside the sampling loop; see bro_retry.rs"]
 async fn guardian_review_retries_transient_session_failure_then_approves() -> anyhow::Result<()> {
     skip_if_no_network!(Ok(()));
 

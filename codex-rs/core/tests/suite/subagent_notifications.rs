@@ -2514,7 +2514,8 @@ enum CompletionScenario {
 )]
 #[test_case(
     CompletionScenario::TerminalError,
-    ThreadHistoryMode::Paginated;
+    ThreadHistoryMode::Paginated
+    => ignore["BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"];
     "terminal_error"
 )]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

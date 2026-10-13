@@ -1694,7 +1694,8 @@ async fn run_sampling_request(
                     if let Some(rate_limits) = rate_limits {
                         sess.update_rate_limits(&turn_context, *rate_limits).await;
                     }
-                    return Err(err);
+                    // BROCODEX: usage limits fall through to Bro's retry policy.
+                    err
                 }
                 _ => err,
             },

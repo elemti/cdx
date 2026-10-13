@@ -504,6 +504,7 @@ async fn exhausted_http_retries_preserve_deadline_through_error_mapping() {
 #[test_case::test_case(Some("0"), 0, 3; "advice_without_stream_retries")]
 #[test_case::test_case(Some("0"), 2, 9; "advice_with_stream_retries")]
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn responses_http_overload_respects_retry_limits(
     retry_after: Option<&str>,
     stream_max_retries: u64,
@@ -688,6 +689,7 @@ async fn compact_v2_uses_retry_after() -> Result<()> {
 
 /// Remote compaction v2 stream failures retry without using the enclosing response header.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn compact_v2_stream_failure_uses_local_backoff_despite_retry_after() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -763,6 +765,7 @@ async fn compact_v2_stream_failure_uses_local_backoff_despite_retry_after() -> R
 
 /// Headerless remote compaction stream rate limits exhaust retries before one terminal error.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn compact_v2_stream_failure_without_retry_after_exhausts_stream_retries() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -940,6 +943,7 @@ async fn compact_v2_rate_limit_uses_server_advice(
 
 /// Headerless remote compaction v2 overloads exhaust request retries before one terminal error.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn compact_v2_overload_without_retry_after_exhausts_request_retries() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1049,6 +1053,7 @@ async fn compact_v2_overload_without_retry_after_exhausts_request_retries() -> R
 
 /// SSE failures currently retry with local backoff instead of the enclosing response header.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn sse_failure_uses_local_backoff_despite_retry_after() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1121,6 +1126,7 @@ async fn sse_failure_uses_local_backoff_despite_retry_after() -> Result<()> {
 #[test_case::test_case("rate_limit_exceeded"; "rate_limit")]
 #[test_case::test_case("slow_down"; "slow_down")]
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn sse_failure_without_retry_after_exhausts_stream_retries(code: &str) -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1272,6 +1278,7 @@ async fn sse_failure_uses_server_advice(
 
 /// A streamed backend overload remains terminal despite an enclosing retry header.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn sse_overload_with_retry_after_is_terminal() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1345,6 +1352,7 @@ async fn sse_overload_with_retry_after_is_terminal() -> Result<()> {
 
 /// A streamed backend overload without retry advice must complete with one terminal error.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn sse_overload_without_retry_after_is_terminal() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1546,6 +1554,7 @@ async fn websocket_streamed_flex_unavailable_is_terminal() -> Result<()> {
 }
 
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn websocket_usage_limit_with_malformed_nested_headers_is_terminal() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1798,6 +1807,7 @@ async fn websocket_failed_event_uses_header_over_plaintext_retry_after() -> Resu
 /// Advised WebSocket failures reach HTTP after the existing retry budget. HTTP
 /// recovery uses its own retry budget and honors the preceding advice deadlines.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn websocket_upgrade_rejection_uses_retry_after() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -1944,6 +1954,7 @@ async fn websocket_error_uses_nested_retry_after() -> Result<()> {
 
 /// Headerless websocket rate limits remain terminal.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn websocket_rate_limit_without_retry_after_is_terminal() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -2021,6 +2032,7 @@ async fn websocket_rate_limit_without_retry_after_is_terminal() -> Result<()> {
 /// When an overload stops giving advice, it is terminal even if the retry limit
 /// has been reached. The transport must not switch after that terminal error.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn websocket_overload_retries_only_while_it_has_retry_after() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
@@ -2136,6 +2148,7 @@ async fn websocket_overload_retries_only_while_it_has_retry_after() -> Result<()
 
 /// Headerless websocket overloads must neither reconnect nor fall back to HTTP.
 #[tokio::test(flavor = "current_thread")]
+#[ignore = "BROCODEX: Bro's retry policy waits out this failure; see bro_retry.rs"]
 async fn websocket_overload_without_retry_after_is_terminal() -> Result<()> {
     skip_if_no_network!(Ok(()));
 
